@@ -1,6 +1,6 @@
 /**
  * Hostinger entry file (must be .js / .mjs / .cjs).
- * Loads TypeScript via tsx, then boots Express.
+ * Boots Express via tsx (TypeScript).
  */
 import { register } from 'tsx/esm/api'
 
