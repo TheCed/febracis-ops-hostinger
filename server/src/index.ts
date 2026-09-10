@@ -26,7 +26,7 @@ import { db } from './lib/db.js'
 import { nowIso } from './lib/utils.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const webDist = path.resolve(__dirname, '../../../web/dist')
+const webDist = path.resolve(__dirname, '../../web/dist')
 
 migrate()
 runOpsMigrations()
