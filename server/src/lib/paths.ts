@@ -27,5 +27,9 @@ export function webDistDir(): string {
 
 export function envFileCandidates(): string[] {
   const root = appRoot()
-  return [path.join(root, '.env'), path.join(root, 'server', '.env')]
+  return [
+    path.join(root, 'app.env'),
+    path.join(root, '.env'),
+    path.join(root, 'server', '.env'),
+  ]
 }

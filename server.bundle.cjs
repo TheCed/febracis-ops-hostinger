@@ -54,7 +54,11 @@ function webDistDir() {
 }
 function envFileCandidates() {
   const root = appRoot();
-  return [import_node_path.default.join(root, ".env"), import_node_path.default.join(root, "server", ".env")];
+  return [
+    import_node_path.default.join(root, "app.env"),
+    import_node_path.default.join(root, ".env"),
+    import_node_path.default.join(root, "server", ".env")
+  ];
 }
 
 // server/src/lib/db.ts
