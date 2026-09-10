@@ -8,10 +8,17 @@
   },
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "npm install --prefix server --omit=dev"
+    "start": "node --experimental-sqlite server.js",
+    "postinstall": "npm install --prefix server --omit=dev --no-audit --no-fund || true"
   },
   "dependencies": {
-    "tsx": "^4.20.5"
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "google-auth-library": "^11.0.2",
+    "tsx": "^4.20.5",
+    "zod": "^3.25.76"
   }
 }
