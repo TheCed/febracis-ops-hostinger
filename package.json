@@ -1,13 +1,21 @@
-{
+﻿{
   "name": "febracis-ops",
   "version": "2.1.0",
   "private": true,
-  "description": "FEBRACIS OPS — deploy package for Hostinger Node.js",
-  "engines": {
-    "node": ">=22.5.0"
-  },
+  "type": "module",
+  "engines": { "node": ">=22.5.0" },
   "scripts": {
-    "start": "npm start --prefix server",
-    "postinstall": "npm install --prefix server --omit=dev"
+    "start": "tsx server/src/index.ts",
+    "postinstall": "echo ready"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "google-auth-library": "^11.0.2",
+    "tsx": "^4.20.5",
+    "zod": "^3.25.76"
   }
 }
