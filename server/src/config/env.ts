@@ -1,10 +1,9 @@
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
+import { envFileCandidates } from '../lib/paths.js'
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
-dotenv.config({ path: path.join(root, '.env') })
-dotenv.config({ path: path.join(root, 'server', '.env') })
+for (const envPath of envFileCandidates()) {
+  dotenv.config({ path: envPath })
+}
 
 function bool(value: string | undefined, fallback = false) {
   if (value == null || value === '') return fallback
@@ -23,7 +22,7 @@ const corsList = (process.env.CORS_ORIGINS || defaultCors)
 if (publicUrl && !corsList.includes(publicUrl)) corsList.push(publicUrl)
 
 export const env = {
-  port: Number(process.env.PORT || 8787),
+  port: Number(process.env.PORT || 3000),
   nodeEnv,
   isProduction,
   publicUrl: publicUrl || null,

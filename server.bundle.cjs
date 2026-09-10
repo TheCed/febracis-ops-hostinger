@@ -26,7 +26,7 @@ var import_express11 = __toESM(require("express"), 1);
 var import_cors = __toESM(require("cors"), 1);
 var import_cookie_parser = __toESM(require("cookie-parser"), 1);
 var import_node_fs3 = __toESM(require("node:fs"), 1);
-var import_node_path4 = __toESM(require("node:path"), 1);
+var import_node_path3 = __toESM(require("node:path"), 1);
 
 // server/src/lib/db.ts
 var import_node_sqlite = require("node:sqlite");
@@ -51,6 +51,14 @@ function dataDir() {
 }
 function webDistDir() {
   return import_node_path.default.join(appRoot(), "web", "dist");
+}
+function envFileCandidates() {
+  const root = appRoot();
+  return [
+    import_node_path.default.join(root, "app.env"),
+    import_node_path.default.join(root, ".env"),
+    import_node_path.default.join(root, "server", ".env")
+  ];
 }
 
 // server/src/lib/db.ts
@@ -649,13 +657,10 @@ var ROLE_PERMISSIONS = {
 };
 
 // server/src/config/env.ts
-var import_node_path3 = __toESM(require("node:path"), 1);
-var import_node_url = require("node:url");
 var import_dotenv = __toESM(require("dotenv"), 1);
-var import_meta = {};
-var root = import_node_path3.default.resolve(import_node_path3.default.dirname((0, import_node_url.fileURLToPath)(import_meta.url)), "../../..");
-import_dotenv.default.config({ path: import_node_path3.default.join(root, ".env") });
-import_dotenv.default.config({ path: import_node_path3.default.join(root, "server", ".env") });
+for (const envPath of envFileCandidates()) {
+  import_dotenv.default.config({ path: envPath });
+}
 function bool(value, fallback = false) {
   if (value == null || value === "") return fallback;
   return ["1", "true", "yes", "on"].includes(value.toLowerCase());
@@ -667,7 +672,7 @@ var defaultCors = "http://localhost:5173,http://127.0.0.1:5173";
 var corsList = (process.env.CORS_ORIGINS || defaultCors).split(",").map((s) => s.trim()).filter(Boolean);
 if (publicUrl && !corsList.includes(publicUrl)) corsList.push(publicUrl);
 var env = {
-  port: Number(process.env.PORT || 8787),
+  port: Number(process.env.PORT || 3e3),
   nodeEnv,
   isProduction,
   publicUrl: publicUrl || null,
@@ -5731,7 +5736,7 @@ app.use((err, _req, res, _next) => {
 if (import_node_fs3.default.existsSync(webDist)) {
   app.use(import_express11.default.static(webDist, { index: false, maxAge: env.isProduction ? "1h" : 0 }));
   app.get(/^(?!\/api).*/, (_req, res) => {
-    res.sendFile(import_node_path4.default.join(webDist, "index.html"));
+    res.sendFile(import_node_path3.default.join(webDist, "index.html"));
   });
 } else {
   app.get("/", (_req, res) => {
