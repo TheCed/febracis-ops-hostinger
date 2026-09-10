@@ -10,7 +10,6 @@ export function appRoot(): string {
   ) {
     return cwd
   }
-  // Running with cwd = server/
   if (fs.existsSync(path.join(cwd, 'src')) && fs.existsSync(path.join(cwd, 'package.json'))) {
     return path.resolve(cwd, '..')
   }
