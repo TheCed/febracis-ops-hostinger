@@ -51,4 +51,6 @@ export const env = {
     credentialsPath: process.env.GOOGLE_SHEETS_CREDENTIALS_PATH || '',
     credentialsJson: process.env.GOOGLE_SHEETS_CREDENTIALS_JSON || '',
   },
+  /** Token for Apps Script / push import without session cookie. */
+  migrationPushToken: (process.env.MIGRATION_PUSH_TOKEN || '').trim(),
 }

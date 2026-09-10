@@ -8,7 +8,11 @@ import {
   runHistoricalImport,
   type HistoricalSheetTab,
 } from '../services/ops/historicalImport.js'
-import { createSheetsClient, shouldImportTurmaTab } from '../services/googleSheets/client.js'
+import {
+  createSheetsClient,
+  findHeaderRowIndex,
+  shouldImportTurmaTab,
+} from '../services/googleSheets/client.js'
 import { env } from '../config/env.js'
 import { FIXTURE_HISTORICAL_TABS } from '../services/ops/fixtures/historicalTabs.js'
 import { ensureDemoOpenTurmas } from '../services/ops/courseResolve.js'
@@ -29,8 +33,113 @@ import {
 } from '../services/ops/contactStatus.js'
 import { CONFIRMACAO_SELECT, mapConfirmacaoRow } from '../services/ops/confirmacaoMapper.js'
 
+function matrixToHistoricalTab(
+  sourceSheet: string,
+  matrix: string[][],
+  sourceFile = 'CONFIRMACOES_TURMA_CHAPECO',
+): HistoricalSheetTab | null {
+  if (!matrix?.length) return null
+  const headerRow = findHeaderRowIndex(matrix)
+  const headerIdx = Math.max(0, headerRow - 1)
+  const headers = (matrix[headerIdx] || []).map((h) => String(h ?? '').trim())
+  if (!headers.some(Boolean)) return null
+  const rows = matrix.slice(headerIdx + 1).map((row) =>
+    headers.map((_, i) => String(row?.[i] ?? '').trim()),
+  )
+  return { sourceFile, sourceSheet, headers, rows }
+}
+
 export function opsRoutes() {
   const router = Router()
+
+  /**
+   * Push import from Google Apps Script (House session) — no Sheets API SA needed.
+   * Auth: X-Migration-Token matching MIGRATION_PUSH_TOKEN, or session + sheets.sync.
+   */
+  router.post('/migration/import-tabs', async (req, res, next) => {
+    const pushToken = String(req.headers['x-migration-token'] || '').trim()
+    const tokenOk =
+      Boolean(env.migrationPushToken) && pushToken === env.migrationPushToken
+
+    if (!tokenOk) {
+      requireAuth(req, res, (err?: unknown) => {
+        if (err) {
+          next(err)
+          return
+        }
+        requirePermission('sheets.sync')(req, res, () => {
+          void handleImportTabs(req, res)
+        })
+      })
+      return
+    }
+    await handleImportTabs(req, res)
+  })
+
+  async function handleImportTabs(
+    req: import('express').Request,
+    res: import('express').Response,
+  ) {
+    const body = z
+      .object({
+        spreadsheetId: z.string().optional(),
+        sourceFile: z.string().optional(),
+        tabs: z.array(
+          z.object({
+            name: z.string().min(1),
+            matrix: z.array(z.array(z.union([z.string(), z.number(), z.null()]))),
+          }),
+        ),
+      })
+      .safeParse(req.body)
+
+    if (!body.success) {
+      res.status(400).json({ error: 'invalid_body', details: body.error.flatten() })
+      return
+    }
+
+    const spreadsheetId =
+      body.data.spreadsheetId ||
+      env.googleSheets.spreadsheetId ||
+      '1F7ksT-v3kQhK5KS2XQ9tDM6_JcMLr22Ovtj-0jxcZ6I'
+    const sourceFile = body.data.sourceFile || 'CONFIRMACOES_TURMA_CHAPECO'
+    const tabs: HistoricalSheetTab[] = []
+    const skipped: Array<{ sheet: string; reason: string }> = []
+
+    for (const tab of body.data.tabs) {
+      if (!shouldImportTurmaTab(tab.name)) {
+        skipped.push({ sheet: tab.name, reason: 'skip_tab' })
+        continue
+      }
+      const matrix = tab.matrix.map((row) => row.map((c) => (c == null ? '' : String(c))))
+      const parsed = matrixToHistoricalTab(tab.name, matrix, sourceFile)
+      if (!parsed) {
+        skipped.push({ sheet: tab.name, reason: 'empty_or_no_header' })
+        continue
+      }
+      tabs.push(parsed)
+    }
+
+    if (!tabs.length) {
+      res.status(400).json({ error: 'no_tabs_importable', skipped })
+      return
+    }
+
+    const summary = runHistoricalImport(tabs, {
+      userId: req.user?.id ?? null,
+      spreadsheetId,
+      mode: 'apply',
+    })
+    res.json({
+      status: 'FUNCIONANDO',
+      source: 'apps_script_push',
+      spreadsheetId,
+      tabsImported: tabs.map((t) => t.sourceSheet),
+      skipped,
+      summary,
+    })
+  }
+
   router.use(requireAuth)
 
   router.get('/turmas', requirePermission('dashboard.view'), (req, res) => {

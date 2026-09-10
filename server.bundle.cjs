@@ -4,6 +4,13 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -21,21 +28,14 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// server/src/index.ts
-var import_express11 = __toESM(require("express"), 1);
-var import_cors = __toESM(require("cors"), 1);
-var import_cookie_parser = __toESM(require("cookie-parser"), 1);
-var import_node_fs3 = __toESM(require("node:fs"), 1);
-var import_node_path3 = __toESM(require("node:path"), 1);
-
-// server/src/lib/db.ts
-var import_node_sqlite = require("node:sqlite");
-var import_node_fs2 = __toESM(require("node:fs"), 1);
-var import_node_path2 = __toESM(require("node:path"), 1);
-
 // server/src/lib/paths.ts
-var import_node_fs = __toESM(require("node:fs"), 1);
-var import_node_path = __toESM(require("node:path"), 1);
+var paths_exports = {};
+__export(paths_exports, {
+  appRoot: () => appRoot,
+  dataDir: () => dataDir,
+  envFileCandidates: () => envFileCandidates,
+  webDistDir: () => webDistDir
+});
 function appRoot() {
   const cwd = process.cwd();
   if (import_node_fs.default.existsSync(import_node_path.default.join(cwd, "server", "package.json")) || import_node_fs.default.existsSync(import_node_path.default.join(cwd, "web", "dist"))) {
@@ -60,8 +60,26 @@ function envFileCandidates() {
     import_node_path.default.join(root, "server", ".env")
   ];
 }
+var import_node_fs, import_node_path;
+var init_paths = __esm({
+  "server/src/lib/paths.ts"() {
+    import_node_fs = __toESM(require("node:fs"), 1);
+    import_node_path = __toESM(require("node:path"), 1);
+  }
+});
+
+// server/src/index.ts
+var import_express11 = __toESM(require("express"), 1);
+var import_cors = __toESM(require("cors"), 1);
+var import_cookie_parser = __toESM(require("cookie-parser"), 1);
+var import_node_fs3 = __toESM(require("node:fs"), 1);
+var import_node_path3 = __toESM(require("node:path"), 1);
 
 // server/src/lib/db.ts
+var import_node_sqlite = require("node:sqlite");
+var import_node_fs2 = __toESM(require("node:fs"), 1);
+var import_node_path2 = __toESM(require("node:path"), 1);
+init_paths();
 var dataDir2 = dataDir();
 var dbPath = import_node_path2.default.join(dataDir2, "febracis.sqlite");
 if (!import_node_fs2.default.existsSync(dataDir2)) {
@@ -658,6 +676,7 @@ var ROLE_PERMISSIONS = {
 
 // server/src/config/env.ts
 var import_dotenv = __toESM(require("dotenv"), 1);
+init_paths();
 for (const envPath of envFileCandidates()) {
   import_dotenv.default.config({ path: envPath });
 }
@@ -698,7 +717,9 @@ var env = {
     sheetName: process.env.GOOGLE_SHEETS_SHEET_NAME || "Clientes",
     credentialsPath: process.env.GOOGLE_SHEETS_CREDENTIALS_PATH || "",
     credentialsJson: process.env.GOOGLE_SHEETS_CREDENTIALS_JSON || ""
-  }
+  },
+  /** Token for Apps Script / push import without session cookie. */
+  migrationPushToken: (process.env.MIGRATION_PUSH_TOKEN || "").trim()
 };
 
 // server/src/seed.ts
@@ -2399,8 +2420,11 @@ var ProductionGoogleSheetsClient = class {
         scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
       });
     }
+    const { appRoot: appRoot2 } = await Promise.resolve().then(() => (init_paths(), paths_exports));
+    const pathMod = await import("node:path");
+    const keyFile = pathMod.isAbsolute(this.opts.credentialsPath || "") ? this.opts.credentialsPath : pathMod.join(appRoot2(), this.opts.credentialsPath || "");
     return new GoogleAuth({
-      keyFile: this.opts.credentialsPath,
+      keyFile,
       scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
     });
   }
@@ -4971,8 +4995,86 @@ var CONFIRMACAO_SELECT = `
 `;
 
 // server/src/routes/ops.ts
+function matrixToHistoricalTab(sourceSheet, matrix, sourceFile = "CONFIRMACOES_TURMA_CHAPECO") {
+  if (!matrix?.length) return null;
+  const headerRow = findHeaderRowIndex(matrix);
+  const headerIdx = Math.max(0, headerRow - 1);
+  const headers = (matrix[headerIdx] || []).map((h) => String(h ?? "").trim());
+  if (!headers.some(Boolean)) return null;
+  const rows = matrix.slice(headerIdx + 1).map(
+    (row) => headers.map((_, i) => String(row?.[i] ?? "").trim())
+  );
+  return { sourceFile, sourceSheet, headers, rows };
+}
 function opsRoutes() {
   const router = (0, import_express10.Router)();
+  router.post("/migration/import-tabs", async (req, res, next) => {
+    const pushToken = String(req.headers["x-migration-token"] || "").trim();
+    const tokenOk = Boolean(env.migrationPushToken) && pushToken === env.migrationPushToken;
+    if (!tokenOk) {
+      requireAuth(req, res, (err) => {
+        if (err) {
+          next(err);
+          return;
+        }
+        requirePermission("sheets.sync")(req, res, () => {
+          void handleImportTabs(req, res);
+        });
+      });
+      return;
+    }
+    await handleImportTabs(req, res);
+  });
+  async function handleImportTabs(req, res) {
+    const body = import_zod8.z.object({
+      spreadsheetId: import_zod8.z.string().optional(),
+      sourceFile: import_zod8.z.string().optional(),
+      tabs: import_zod8.z.array(
+        import_zod8.z.object({
+          name: import_zod8.z.string().min(1),
+          matrix: import_zod8.z.array(import_zod8.z.array(import_zod8.z.union([import_zod8.z.string(), import_zod8.z.number(), import_zod8.z.null()])))
+        })
+      )
+    }).safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "invalid_body", details: body.error.flatten() });
+      return;
+    }
+    const spreadsheetId = body.data.spreadsheetId || env.googleSheets.spreadsheetId || "1F7ksT-v3kQhK5KS2XQ9tDM6_JcMLr22Ovtj-0jxcZ6I";
+    const sourceFile = body.data.sourceFile || "CONFIRMACOES_TURMA_CHAPECO";
+    const tabs = [];
+    const skipped = [];
+    for (const tab of body.data.tabs) {
+      if (!shouldImportTurmaTab(tab.name)) {
+        skipped.push({ sheet: tab.name, reason: "skip_tab" });
+        continue;
+      }
+      const matrix = tab.matrix.map((row) => row.map((c) => c == null ? "" : String(c)));
+      const parsed = matrixToHistoricalTab(tab.name, matrix, sourceFile);
+      if (!parsed) {
+        skipped.push({ sheet: tab.name, reason: "empty_or_no_header" });
+        continue;
+      }
+      tabs.push(parsed);
+    }
+    if (!tabs.length) {
+      res.status(400).json({ error: "no_tabs_importable", skipped });
+      return;
+    }
+    const summary = runHistoricalImport(tabs, {
+      userId: req.user?.id ?? null,
+      spreadsheetId,
+      mode: "apply"
+    });
+    res.json({
+      status: "FUNCIONANDO",
+      source: "apps_script_push",
+      spreadsheetId,
+      tabsImported: tabs.map((t) => t.sourceSheet),
+      skipped,
+      summary
+    });
+  }
   router.use(requireAuth);
   router.get("/turmas", requirePermission("dashboard.view"), (req, res) => {
     const priority = String(req.query.priority || "");
@@ -5641,6 +5743,7 @@ function latestMigrationSummary() {
 }
 
 // server/src/index.ts
+init_paths();
 var webDist = webDistDir();
 migrate();
 runOpsMigrations();

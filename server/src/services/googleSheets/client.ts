@@ -189,8 +189,13 @@ export class ProductionGoogleSheetsClient implements GoogleSheetsClient {
         scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
       })
     }
+    const { appRoot } = await import('../../lib/paths.js')
+    const pathMod = await import('node:path')
+    const keyFile = pathMod.isAbsolute(this.opts.credentialsPath || '')
+      ? this.opts.credentialsPath!
+      : pathMod.join(appRoot(), this.opts.credentialsPath || '')
     return new GoogleAuth({
-      keyFile: this.opts.credentialsPath,
+      keyFile,
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     })
   }
