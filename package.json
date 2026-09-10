@@ -8,6 +8,7 @@
   },
   "main": "server.cjs",
   "scripts": {
+    "build:server": "esbuild server/src/index.ts --bundle --platform=node --target=node22 --format=cjs --outfile=server.bundle.cjs --packages=external",
     "start": "node --experimental-sqlite server.cjs",
     "postinstall": "npm install --prefix server --omit=dev --no-audit --no-fund || true"
   },
@@ -18,7 +19,9 @@
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
     "google-auth-library": "^11.0.2",
-    "tsx": "^4.20.5",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.9"
   }
 }

@@ -1,0 +1,6 @@
+[febracis] boot {
+  node: 'v24.19.0',
+  port: '3456',
+  cwd: 'C:\\Users\\House\\Desktop\\febracis-ops-deploy',
+  nodeEnv: 'production'
+}

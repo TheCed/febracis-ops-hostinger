@@ -1,10 +1,9 @@
 import { DatabaseSync } from 'node:sqlite'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { dataDir as resolveDataDir } from './paths.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const dataDir = path.resolve(__dirname, '../../data')
+const dataDir = resolveDataDir()
 const dbPath = path.join(dataDir, 'febracis.sqlite')
 
 if (!fs.existsSync(dataDir)) {

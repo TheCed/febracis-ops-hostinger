@@ -3,7 +3,6 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { migrate } from './lib/db.js'
 import { runOpsMigrations } from './lib/migrations/opsMigrations.js'
 import { seedIfEmpty, seedCatalogIfEmpty } from './seed.js'
@@ -24,9 +23,9 @@ import { computeTurmaHealth } from './services/ops/turmaHealth.js'
 import { syncTurmaAlert } from './services/ops/turmaAlerts.js'
 import { db } from './lib/db.js'
 import { nowIso } from './lib/utils.js'
+import { webDistDir } from './lib/paths.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const webDist = path.resolve(__dirname, '../../web/dist')
+const webDist = webDistDir()
 
 migrate()
 runOpsMigrations()
@@ -148,7 +147,8 @@ if (fs.existsSync(webDist)) {
   })
 }
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`FEBRACIS OPS listening on http://0.0.0.0:${PORT}`)
+// Hostinger LSNode injects PORT; do not hardcode host binding.
+app.listen(PORT, () => {
+  console.log(`FEBRACIS OPS listening on port ${PORT}`)
   console.log(`SPA: ${fs.existsSync(webDist) ? webDist : 'missing'}`)
 })

@@ -1,0 +1,1 @@
+[seed] Skipped demo seed (production / ALLOW_DEMO_SEED=false). Set BOOTSTRAP_ADMIN_EMAIL + BOOTSTRAP_ADMIN_PASSWORD.
