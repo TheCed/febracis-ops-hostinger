@@ -6,9 +6,9 @@
   "engines": {
     "node": ">=22.5.0"
   },
-  "main": "server.js",
+  "main": "server.cjs",
   "scripts": {
-    "start": "node --experimental-sqlite server.js",
+    "start": "node --experimental-sqlite server.cjs",
     "postinstall": "npm install --prefix server --omit=dev --no-audit --no-fund || true"
   },
   "dependencies": {
