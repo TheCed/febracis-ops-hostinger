@@ -26,7 +26,7 @@ var import_express11 = __toESM(require("express"), 1);
 var import_cors = __toESM(require("cors"), 1);
 var import_cookie_parser = __toESM(require("cookie-parser"), 1);
 var import_node_fs3 = __toESM(require("node:fs"), 1);
-var import_node_path3 = __toESM(require("node:path"), 1);
+var import_node_path4 = __toESM(require("node:path"), 1);
 
 // server/src/lib/db.ts
 var import_node_sqlite = require("node:sqlite");
@@ -51,14 +51,6 @@ function dataDir() {
 }
 function webDistDir() {
   return import_node_path.default.join(appRoot(), "web", "dist");
-}
-function envFileCandidates() {
-  const root = appRoot();
-  return [
-    import_node_path.default.join(root, "app.env"),
-    import_node_path.default.join(root, ".env"),
-    import_node_path.default.join(root, "server", ".env")
-  ];
 }
 
 // server/src/lib/db.ts
@@ -657,10 +649,13 @@ var ROLE_PERMISSIONS = {
 };
 
 // server/src/config/env.ts
+var import_node_path3 = __toESM(require("node:path"), 1);
+var import_node_url = require("node:url");
 var import_dotenv = __toESM(require("dotenv"), 1);
-for (const envPath of envFileCandidates()) {
-  import_dotenv.default.config({ path: envPath });
-}
+var import_meta = {};
+var root = import_node_path3.default.resolve(import_node_path3.default.dirname((0, import_node_url.fileURLToPath)(import_meta.url)), "../../..");
+import_dotenv.default.config({ path: import_node_path3.default.join(root, ".env") });
+import_dotenv.default.config({ path: import_node_path3.default.join(root, "server", ".env") });
 function bool(value, fallback = false) {
   if (value == null || value === "") return fallback;
   return ["1", "true", "yes", "on"].includes(value.toLowerCase());
@@ -672,7 +667,7 @@ var defaultCors = "http://localhost:5173,http://127.0.0.1:5173";
 var corsList = (process.env.CORS_ORIGINS || defaultCors).split(",").map((s) => s.trim()).filter(Boolean);
 if (publicUrl && !corsList.includes(publicUrl)) corsList.push(publicUrl);
 var env = {
-  port: Number(process.env.PORT || 3e3),
+  port: Number(process.env.PORT || 8787),
   nodeEnv,
   isProduction,
   publicUrl: publicUrl || null,
@@ -694,7 +689,7 @@ var env = {
   },
   googleSheets: {
     enabled: bool(process.env.GOOGLE_SHEETS_ENABLED),
-    spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || "",
+    spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || "1F7ksT-v3kQhK5KS2XQ9tDM6_JcMLr22Ovtj-0jxcZ6I",
     sheetName: process.env.GOOGLE_SHEETS_SHEET_NAME || "Clientes",
     credentialsPath: process.env.GOOGLE_SHEETS_CREDENTIALS_PATH || "",
     credentialsJson: process.env.GOOGLE_SHEETS_CREDENTIALS_JSON || ""
@@ -2152,6 +2147,107 @@ function dashboardRoutes() {
 var import_express5 = require("express");
 var import_zod4 = require("zod");
 
+// server/src/services/ops/schemaDetector.ts
+var ALIASES = {
+  personName: ["aluno", "alunos", "cliente", "clientes", "nome", "nome completo", "participante"],
+  cpf: ["cpf", "cpf/cnpj", "cnpj", "documento"],
+  email: ["email", "e-mail", "mail"],
+  phone: ["telefone", "fone", "celular", "tel"],
+  whatsapp: ["whatsapp", "whats", "zap"],
+  consultant: ["consultor", "consultora", "vendedor", "respons\xE1vel", "responsavel"],
+  confirmationStatus: [
+    "confirma\xE7\xE3o",
+    "confirmacao",
+    "status",
+    "status vaga",
+    "status confirma\xE7\xE3o",
+    "status confirmacao"
+  ],
+  presence: ["presente", "presen\xE7a", "presenca", "presence"],
+  grade: ["grade", "faixa", "n\xEDvel", "nivel"],
+  matriculaSales: ["matricula sales", "matr\xEDcula sales", "matricula", "salesforce matr\xEDcula"],
+  observation: ["observa\xE7\xE3o", "observacao", "obs", "obs./contato", "obs/contato", "obs contato"],
+  contact1: ["1\xBA contato", "1o contato", "1 contato", "primeiro contato"],
+  contact2: ["2\xBA contato", "2o contato", "2 contato", "segundo contato"],
+  contact3: ["3\xBA contato", "3o contato", "3 contato", "terceiro contato"],
+  contact4: ["4\xBA contato", "4o contato", "4 contato", "quarto contato"],
+  salesforceId: ["salesforce id", "sf id", "id salesforce"],
+  salesforceUrl: [
+    "salesforce",
+    "sf url",
+    "link salesforce",
+    "url salesforce",
+    "link compra",
+    "link da compra",
+    "url compra"
+  ],
+  financial: ["financeiro", "pagamento", "status pagamento", "financeiro status"],
+  ignored: []
+};
+function normHeader(h) {
+  return h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+function detectSchema(headers) {
+  const mapping = {};
+  const used = /* @__PURE__ */ new Set();
+  const unknownHeaders = [];
+  for (const header of headers) {
+    const n = normHeader(header);
+    if (!n) {
+      mapping[header] = "ignored";
+      continue;
+    }
+    let hit = null;
+    for (const [field, aliases] of Object.entries(ALIASES)) {
+      if (field === "ignored") continue;
+      if (aliases.some((a) => n === normHeader(a) || n.includes(normHeader(a)))) {
+        if ((field === "personName" || field === "cpf" || field === "email") && used.has(field)) {
+          continue;
+        }
+        hit = field;
+        break;
+      }
+    }
+    if (hit) {
+      mapping[header] = hit;
+      used.add(hit);
+    } else {
+      mapping[header] = "unknown";
+      unknownHeaders.push(header);
+    }
+  }
+  const knownFields = [...used];
+  const missingRequired = [];
+  if (!used.has("personName")) missingRequired.push("personName");
+  const mappedCount = Object.values(mapping).filter((v) => v !== "unknown" && v !== "ignored").length;
+  const confidence = headers.length === 0 ? 0 : Math.max(0, Math.min(1, mappedCount / Math.max(headers.length, 1)));
+  const fingerprint = headers.map(normHeader).filter(Boolean).join("|");
+  return {
+    fingerprint,
+    mapping,
+    confidence,
+    knownFields,
+    unknownHeaders,
+    missingRequired
+  };
+}
+function mapRowValues(headers, values, detection) {
+  const out = {
+    unknowns: {}
+  };
+  headers.forEach((h, i) => {
+    const field = detection.mapping[h];
+    const val = values[i] ?? "";
+    if (!field || field === "ignored") return;
+    if (field === "unknown") {
+      if (val.trim()) out.unknowns[h] = val;
+      return;
+    }
+    out[field] = val;
+  });
+  return out;
+}
+
 // server/src/services/googleSheets/client.ts
 var MOCK_HEADERS = [
   "ID",
@@ -2192,51 +2288,55 @@ var MOCK_ROWS = [
     "Presente",
     "Negociando",
     ""
-  ],
-  [
-    "EXT-1003",
-    "  Pedro   Souza  ",
-    "49988880003",
-    "49988880003",
-    "PEDRO@EMAIL.COM",
-    "Consultor Inexistente",
-    "ML5",
-    "01/11/2026",
-    "N\xE3o",
-    "Lead",
-    "Conflito de consultor esperado"
-  ],
-  [
-    "",
-    "",
-    "49988880004",
-    "",
-    "",
-    "Maria",
-    "",
-    "",
-    "",
-    "",
-    "Linha inv\xE1lida sem ID/Nome"
-  ],
-  [
-    "EXT-1001",
-    "Jo\xE3o Pedro Almeida Duplicado",
-    "49988880005",
-    "",
-    "joao.dup@email.com",
-    "Vanessa",
-    "CIS",
-    "15/09/2026",
-    "Sim",
-    "Ativo",
-    "Mesmo external_id \u2014 conflito/dedupe"
   ]
 ];
+var SKIP_TAB_RE = /^(legendas|modelo|cancelad)/i;
+function shouldImportTurmaTab(title) {
+  const t = title.trim();
+  if (!t) return false;
+  if (SKIP_TAB_RE.test(t)) return false;
+  return true;
+}
+function findHeaderRowIndex(matrix) {
+  const limit = Math.min(matrix.length, 25);
+  let best = { row: 1, score: -1 };
+  for (let i = 0; i < limit; i++) {
+    const headers = (matrix[i] || []).map((h) => String(h || "").trim());
+    if (!headers.some(Boolean)) continue;
+    const d = detectSchema(headers);
+    const hasName = d.knownFields.includes("personName");
+    const score = (hasName ? 10 : 0) + d.knownFields.length + d.confidence;
+    if (hasName && score > best.score) {
+      best = { row: i + 1, score };
+    }
+  }
+  return best.score >= 0 ? best.row : 1;
+}
+function matrixToRows(matrix, headerRow1Based) {
+  const headerIdx = Math.max(0, headerRow1Based - 1);
+  if (!matrix.length || headerIdx >= matrix.length) return { headers: [], rows: [] };
+  const headers = (matrix[headerIdx] || []).map((h) => String(h || "").trim());
+  const rows = matrix.slice(headerIdx + 1).map((line) => {
+    const row = {};
+    headers.forEach((h, i) => {
+      if (!h) return;
+      row[h] = String(line[i] ?? "");
+    });
+    return row;
+  });
+  return { headers, rows };
+}
 var MockGoogleSheetsClient = class {
   mode = "mock";
   async testConnection() {
     return { ok: true, message: "Mock Sheets OK (sem credenciais Google)" };
+  }
+  async listSheetTitles() {
+    return [
+      { title: "IF 08", sheetId: 1 },
+      { title: "CEOP05", sheetId: 2 },
+      { title: "LEGENDAS", sheetId: 3 }
+    ];
   }
   async readRows(_spreadsheetId, _sheetName, _headerRow) {
     const rows = MOCK_ROWS.map((values) => {
@@ -2247,6 +2347,20 @@ var MockGoogleSheetsClient = class {
       return row;
     });
     return { headers: MOCK_HEADERS, rows };
+  }
+  async readTurmaTab(_spreadsheetId, sheetName) {
+    const headers = ["ALUNO", "CPF/CNPJ", "TELEFONE", "EMAIL", "LINK COMPRA", "CONSULTOR"];
+    const rows = [
+      {
+        ALUNO: `Mock Aluno ${sheetName}`,
+        "CPF/CNPJ": "12345678901",
+        TELEFONE: "49999990000",
+        EMAIL: "mock@febracis.local",
+        "LINK COMPRA": "",
+        CONSULTOR: "Vanessa"
+      }
+    ];
+    return { headers, rows, headerRow: 5 };
   }
 };
 var ProductionGoogleSheetsClient = class {
@@ -2285,25 +2399,39 @@ var ProductionGoogleSheetsClient = class {
       scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
     });
   }
-  async readRows(spreadsheetId, sheetName, headerRow) {
+  async requestJson(url) {
     const auth = await this.getAuth();
     const client = await auth.getClient();
-    const range = `${sheetName}!A${headerRow}:Z`;
+    const res = await client.request({ url });
+    return res.data;
+  }
+  async listSheetTitles(spreadsheetId) {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=sheets.properties(sheetId%2Ctitle)`;
+    const data = await this.requestJson(url);
+    return (data.sheets || []).map((s) => ({
+      title: String(s.properties?.title || "").trim(),
+      sheetId: Number(s.properties?.sheetId || 0)
+    })).filter((s) => s.title);
+  }
+  async readMatrix(spreadsheetId, sheetName, rangeA1) {
+    const range = `${sheetName}!${rangeA1}`;
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
       spreadsheetId
     )}/values/${encodeURIComponent(range)}`;
-    const res = await client.request({ url });
-    const values = res.data.values || [];
+    const data = await this.requestJson(url);
+    return data.values || [];
+  }
+  async readRows(spreadsheetId, sheetName, headerRow) {
+    const values = await this.readMatrix(spreadsheetId, sheetName, `A${headerRow}:Z`);
     if (!values.length) return { headers: [], rows: [] };
-    const headers = values[0].map((h) => String(h || "").trim());
-    const rows = values.slice(1).map((line) => {
-      const row = {};
-      headers.forEach((h, i) => {
-        row[h] = String(line[i] ?? "");
-      });
-      return row;
-    });
-    return { headers, rows };
+    return matrixToRows(values, 1);
+  }
+  async readTurmaTab(spreadsheetId, sheetName) {
+    const preview = await this.readMatrix(spreadsheetId, sheetName, "A1:Z40");
+    const headerRow = findHeaderRowIndex(preview);
+    const values = await this.readMatrix(spreadsheetId, sheetName, `A${headerRow}:Z`);
+    const { headers, rows } = matrixToRows(values, 1);
+    return { headers, rows, headerRow };
   }
 };
 function createSheetsClient(opts) {
@@ -3906,99 +4034,6 @@ function computeTurmaHealth(input) {
 // server/src/services/ops/historicalImport.ts
 var import_node_crypto3 = require("node:crypto");
 
-// server/src/services/ops/schemaDetector.ts
-var ALIASES = {
-  personName: ["aluno", "alunos", "cliente", "clientes", "nome", "nome completo", "participante"],
-  cpf: ["cpf", "cpf/cnpj", "cnpj", "documento"],
-  email: ["email", "e-mail", "mail"],
-  phone: ["telefone", "fone", "celular", "tel"],
-  whatsapp: ["whatsapp", "whats", "zap"],
-  consultant: ["consultor", "consultora", "vendedor", "respons\xE1vel", "responsavel"],
-  confirmationStatus: [
-    "confirma\xE7\xE3o",
-    "confirmacao",
-    "status",
-    "status vaga",
-    "status confirma\xE7\xE3o",
-    "status confirmacao"
-  ],
-  presence: ["presente", "presen\xE7a", "presenca", "presence"],
-  grade: ["grade", "faixa", "n\xEDvel", "nivel"],
-  matriculaSales: ["matricula sales", "matr\xEDcula sales", "matricula", "salesforce matr\xEDcula"],
-  observation: ["observa\xE7\xE3o", "observacao", "obs", "obs./contato", "obs/contato", "obs contato"],
-  contact1: ["1\xBA contato", "1o contato", "1 contato", "primeiro contato"],
-  contact2: ["2\xBA contato", "2o contato", "2 contato", "segundo contato"],
-  contact3: ["3\xBA contato", "3o contato", "3 contato", "terceiro contato"],
-  contact4: ["4\xBA contato", "4o contato", "4 contato", "quarto contato"],
-  salesforceId: ["salesforce id", "sf id", "id salesforce"],
-  salesforceUrl: ["salesforce", "sf url", "link salesforce", "url salesforce"],
-  financial: ["financeiro", "pagamento", "status pagamento", "financeiro status"],
-  ignored: []
-};
-function normHeader(h) {
-  return h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
-}
-function detectSchema(headers) {
-  const mapping = {};
-  const used = /* @__PURE__ */ new Set();
-  const unknownHeaders = [];
-  for (const header of headers) {
-    const n = normHeader(header);
-    if (!n) {
-      mapping[header] = "ignored";
-      continue;
-    }
-    let hit = null;
-    for (const [field, aliases] of Object.entries(ALIASES)) {
-      if (field === "ignored") continue;
-      if (aliases.some((a) => n === normHeader(a) || n.includes(normHeader(a)))) {
-        if ((field === "personName" || field === "cpf" || field === "email") && used.has(field)) {
-          continue;
-        }
-        hit = field;
-        break;
-      }
-    }
-    if (hit) {
-      mapping[header] = hit;
-      used.add(hit);
-    } else {
-      mapping[header] = "unknown";
-      unknownHeaders.push(header);
-    }
-  }
-  const knownFields = [...used];
-  const missingRequired = [];
-  if (!used.has("personName")) missingRequired.push("personName");
-  const mappedCount = Object.values(mapping).filter((v) => v !== "unknown" && v !== "ignored").length;
-  const confidence = headers.length === 0 ? 0 : Math.max(0, Math.min(1, mappedCount / Math.max(headers.length, 1)));
-  const fingerprint = headers.map(normHeader).filter(Boolean).join("|");
-  return {
-    fingerprint,
-    mapping,
-    confidence,
-    knownFields,
-    unknownHeaders,
-    missingRequired
-  };
-}
-function mapRowValues(headers, values, detection) {
-  const out = {
-    unknowns: {}
-  };
-  headers.forEach((h, i) => {
-    const field = detection.mapping[h];
-    const val = values[i] ?? "";
-    if (!field || field === "ignored") return;
-    if (field === "unknown") {
-      if (val.trim()) out.unknowns[h] = val;
-      return;
-    }
-    out[field] = val;
-  });
-  return out;
-}
-
 // server/src/services/ops/courseResolve.ts
 var COURSE_ALIASES = {
   mcis: "m-cis",
@@ -5282,50 +5317,107 @@ function opsRoutes() {
     res.json({ status: "FUNCIONANDO", source: "fixtures", summary, demoTurmas: demos.length });
   });
   router.post("/migration/run-sheet", requirePermission("sheets.sync"), async (req, res) => {
+    const spreadsheetId = String(req.body?.spreadsheetId || "").trim() || env.googleSheets.spreadsheetId || "";
     const client = createSheetsClient({
       enabled: env.googleSheets.enabled,
       credentialsPath: env.googleSheets.credentialsPath,
       credentialsJson: env.googleSheets.credentialsJson
     });
-    if (client.mode !== "production" || !env.googleSheets.spreadsheetId) {
+    if (client.mode !== "production" || !spreadsheetId) {
       res.status(503).json({
         status: "PENDENTE CREDENCIAL",
         error: "google_sheets_credentials_required",
-        hint: "Configure GOOGLE_SHEETS_ENABLED + credentials + SPREADSHEET_ID do piloto 2.0",
-        spreadsheetIdExpected: "198Do2Itg7pIfcI4sHjKLIGLJtR1JEfbpir01CVU9Edc"
+        hint: "Configure GOOGLE_SHEETS_ENABLED=true + GOOGLE_SHEETS_CREDENTIALS_JSON (ou PATH) + SPREADSHEET_ID. Compartilhe a planilha com o e-mail da service account.",
+        spreadsheetIdExpected: spreadsheetId || "1F7ksT-v3kQhK5KS2XQ9tDM6_JcMLr22Ovtj-0jxcZ6I"
       });
       return;
     }
-    const sheetNames = import_zod8.z.array(import_zod8.z.string()).optional().parse(req.body?.sheets) || [
-      "98_RAW_HISTORICO",
-      "BASE_INSCRICOES",
-      "BASE_PESSOAS",
-      "BASE_TURMAS"
-    ];
+    const bodySheets = import_zod8.z.array(import_zod8.z.string()).optional().parse(req.body?.sheets);
+    let sheetNames = bodySheets;
+    if (!sheetNames?.length) {
+      try {
+        const titles = await client.listSheetTitles(spreadsheetId);
+        sheetNames = titles.map((t) => t.title).filter(shouldImportTurmaTab);
+      } catch (err) {
+        console.warn("listSheetTitles failed", err);
+        sheetNames = [];
+      }
+    }
+    if (!sheetNames.length) {
+      res.status(502).json({ error: "no_sheets_listed", status: "PARCIAL" });
+      return;
+    }
     const tabs = [];
+    const failed = [];
     for (const name of sheetNames) {
       try {
-        const { headers, rows } = await client.readRows(env.googleSheets.spreadsheetId, name, 1);
+        const { headers, rows } = await client.readTurmaTab(spreadsheetId, name);
+        if (!headers.length) {
+          failed.push({ sheet: name, error: "empty_or_no_header" });
+          continue;
+        }
         tabs.push({
-          sourceFile: "CONFIRMACOES_2.0_PILOTO",
+          sourceFile: "CONFIRMACOES_TURMA_CHAPECO",
           sourceSheet: name,
           headers,
           rows: rows.map((r) => headers.map((h) => String(r[h] ?? "")))
         });
       } catch (err) {
+        failed.push({
+          sheet: name,
+          error: err instanceof Error ? err.message : "read_failed"
+        });
         console.warn("sheet read failed", name, err);
       }
     }
     if (!tabs.length) {
-      res.status(502).json({ error: "no_sheets_readable", status: "PARCIAL" });
+      res.status(502).json({ error: "no_sheets_readable", status: "PARCIAL", failed });
       return;
     }
     const summary = runHistoricalImport(tabs, {
       userId: req.user?.id,
-      spreadsheetId: env.googleSheets.spreadsheetId,
+      spreadsheetId,
       mode: "apply"
     });
-    res.json({ status: "FUNCIONANDO", source: "google_sheets", summary });
+    res.json({
+      status: "FUNCIONANDO",
+      source: "google_sheets",
+      spreadsheetId,
+      tabsImported: tabs.map((t) => t.sourceSheet),
+      failed,
+      summary
+    });
+  });
+  router.get("/migration/sheets", requirePermission("sheets.sync"), async (_req, res) => {
+    const spreadsheetId = env.googleSheets.spreadsheetId;
+    const client = createSheetsClient({
+      enabled: env.googleSheets.enabled,
+      credentialsPath: env.googleSheets.credentialsPath,
+      credentialsJson: env.googleSheets.credentialsJson
+    });
+    if (client.mode !== "production" || !spreadsheetId) {
+      res.status(503).json({
+        status: "PENDENTE CREDENCIAL",
+        error: "google_sheets_credentials_required",
+        spreadsheetId: spreadsheetId || null
+      });
+      return;
+    }
+    try {
+      const titles = await client.listSheetTitles(spreadsheetId);
+      res.json({
+        spreadsheetId,
+        sheets: titles.map((t) => ({
+          ...t,
+          importable: shouldImportTurmaTab(t.title)
+        }))
+      });
+    } catch (err) {
+      res.status(502).json({
+        error: "sheets_list_failed",
+        message: err instanceof Error ? err.message : "unknown"
+      });
+    }
   });
   router.get("/confirmacoes", requirePermission("dashboard.view"), (req, res) => {
     const turmaId = String(req.query.turmaId || "").trim();
@@ -5639,7 +5731,7 @@ app.use((err, _req, res, _next) => {
 if (import_node_fs3.default.existsSync(webDist)) {
   app.use(import_express11.default.static(webDist, { index: false, maxAge: env.isProduction ? "1h" : 0 }));
   app.get(/^(?!\/api).*/, (_req, res) => {
-    res.sendFile(import_node_path3.default.join(webDist, "index.html"));
+    res.sendFile(import_node_path4.default.join(webDist, "index.html"));
   });
 } else {
   app.get("/", (_req, res) => {

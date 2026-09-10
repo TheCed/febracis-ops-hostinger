@@ -8,7 +8,7 @@ import {
   runHistoricalImport,
   type HistoricalSheetTab,
 } from '../services/ops/historicalImport.js'
-import { createSheetsClient } from '../services/googleSheets/client.js'
+import { createSheetsClient, shouldImportTurmaTab } from '../services/googleSheets/client.js'
 import { env } from '../config/env.js'
 import { FIXTURE_HISTORICAL_TABS } from '../services/ops/fixtures/historicalTabs.js'
 import { ensureDemoOpenTurmas } from '../services/ops/courseResolve.js'
@@ -452,58 +452,118 @@ export function opsRoutes() {
   })
 
   router.post('/migration/run-sheet', requirePermission('sheets.sync'), async (req, res) => {
+    const spreadsheetId =
+      String(req.body?.spreadsheetId || '').trim() ||
+      env.googleSheets.spreadsheetId ||
+      ''
     const client = createSheetsClient({
       enabled: env.googleSheets.enabled,
       credentialsPath: env.googleSheets.credentialsPath,
       credentialsJson: env.googleSheets.credentialsJson,
     })
-    if (client.mode !== 'production' || !env.googleSheets.spreadsheetId) {
+    if (client.mode !== 'production' || !spreadsheetId) {
       res.status(503).json({
         status: 'PENDENTE CREDENCIAL',
         error: 'google_sheets_credentials_required',
-        hint: 'Configure GOOGLE_SHEETS_ENABLED + credentials + SPREADSHEET_ID do piloto 2.0',
-        spreadsheetIdExpected: '198Do2Itg7pIfcI4sHjKLIGLJtR1JEfbpir01CVU9Edc',
+        hint:
+          'Configure GOOGLE_SHEETS_ENABLED=true + GOOGLE_SHEETS_CREDENTIALS_JSON (ou PATH) + SPREADSHEET_ID. Compartilhe a planilha com o e-mail da service account.',
+        spreadsheetIdExpected:
+          spreadsheetId || '1F7ksT-v3kQhK5KS2XQ9tDM6_JcMLr22Ovtj-0jxcZ6I',
       })
       return
     }
 
-    const sheetNames = z
-      .array(z.string())
-      .optional()
-      .parse(req.body?.sheets) || [
-      '98_RAW_HISTORICO',
-      'BASE_INSCRICOES',
-      'BASE_PESSOAS',
-      'BASE_TURMAS',
-    ]
+    const bodySheets = z.array(z.string()).optional().parse(req.body?.sheets)
+    let sheetNames = bodySheets
+    if (!sheetNames?.length) {
+      try {
+        const titles = await client.listSheetTitles(spreadsheetId)
+        sheetNames = titles.map((t) => t.title).filter(shouldImportTurmaTab)
+      } catch (err) {
+        console.warn('listSheetTitles failed', err)
+        sheetNames = []
+      }
+    }
+
+    if (!sheetNames.length) {
+      res.status(502).json({ error: 'no_sheets_listed', status: 'PARCIAL' })
+      return
+    }
 
     const tabs: HistoricalSheetTab[] = []
+    const failed: Array<{ sheet: string; error: string }> = []
     for (const name of sheetNames) {
       try {
-        const { headers, rows } = await client.readRows(env.googleSheets.spreadsheetId, name, 1)
+        const { headers, rows } = await client.readTurmaTab(spreadsheetId, name)
+        if (!headers.length) {
+          failed.push({ sheet: name, error: 'empty_or_no_header' })
+          continue
+        }
         tabs.push({
-          sourceFile: 'CONFIRMACOES_2.0_PILOTO',
+          sourceFile: 'CONFIRMACOES_TURMA_CHAPECO',
           sourceSheet: name,
           headers,
           rows: rows.map((r) => headers.map((h) => String(r[h] ?? ''))),
         })
       } catch (err) {
-        // continue other sheets
+        failed.push({
+          sheet: name,
+          error: err instanceof Error ? err.message : 'read_failed',
+        })
         console.warn('sheet read failed', name, err)
       }
     }
 
     if (!tabs.length) {
-      res.status(502).json({ error: 'no_sheets_readable', status: 'PARCIAL' })
+      res.status(502).json({ error: 'no_sheets_readable', status: 'PARCIAL', failed })
       return
     }
 
     const summary = runHistoricalImport(tabs, {
       userId: req.user?.id,
-      spreadsheetId: env.googleSheets.spreadsheetId,
+      spreadsheetId,
       mode: 'apply',
     })
-    res.json({ status: 'FUNCIONANDO', source: 'google_sheets', summary })
+    res.json({
+      status: 'FUNCIONANDO',
+      source: 'google_sheets',
+      spreadsheetId,
+      tabsImported: tabs.map((t) => t.sourceSheet),
+      failed,
+      summary,
+    })
+  })
+
+  router.get('/migration/sheets', requirePermission('sheets.sync'), async (_req, res) => {
+    const spreadsheetId = env.googleSheets.spreadsheetId
+    const client = createSheetsClient({
+      enabled: env.googleSheets.enabled,
+      credentialsPath: env.googleSheets.credentialsPath,
+      credentialsJson: env.googleSheets.credentialsJson,
+    })
+    if (client.mode !== 'production' || !spreadsheetId) {
+      res.status(503).json({
+        status: 'PENDENTE CREDENCIAL',
+        error: 'google_sheets_credentials_required',
+        spreadsheetId: spreadsheetId || null,
+      })
+      return
+    }
+    try {
+      const titles = await client.listSheetTitles(spreadsheetId)
+      res.json({
+        spreadsheetId,
+        sheets: titles.map((t) => ({
+          ...t,
+          importable: shouldImportTurmaTab(t.title),
+        })),
+      })
+    } catch (err) {
+      res.status(502).json({
+        error: 'sheets_list_failed',
+        message: err instanceof Error ? err.message : 'unknown',
+      })
+    }
   })
 
   router.get('/confirmacoes', requirePermission('dashboard.view'), (req, res) => {

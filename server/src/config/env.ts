@@ -1,9 +1,10 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
-import { envFileCandidates } from '../lib/paths.js'
 
-for (const envPath of envFileCandidates()) {
-  dotenv.config({ path: envPath })
-}
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
+dotenv.config({ path: path.join(root, '.env') })
+dotenv.config({ path: path.join(root, 'server', '.env') })
 
 function bool(value: string | undefined, fallback = false) {
   if (value == null || value === '') return fallback
@@ -22,7 +23,7 @@ const corsList = (process.env.CORS_ORIGINS || defaultCors)
 if (publicUrl && !corsList.includes(publicUrl)) corsList.push(publicUrl)
 
 export const env = {
-  port: Number(process.env.PORT || 3000),
+  port: Number(process.env.PORT || 8787),
   nodeEnv,
   isProduction,
   publicUrl: publicUrl || null,
@@ -44,7 +45,9 @@ export const env = {
   },
   googleSheets: {
     enabled: bool(process.env.GOOGLE_SHEETS_ENABLED),
-    spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || '',
+    spreadsheetId:
+      process.env.GOOGLE_SHEETS_SPREADSHEET_ID ||
+      '1F7ksT-v3kQhK5KS2XQ9tDM6_JcMLr22Ovtj-0jxcZ6I',
     sheetName: process.env.GOOGLE_SHEETS_SHEET_NAME || 'Clientes',
     credentialsPath: process.env.GOOGLE_SHEETS_CREDENTIALS_PATH || '',
     credentialsJson: process.env.GOOGLE_SHEETS_CREDENTIALS_JSON || '',

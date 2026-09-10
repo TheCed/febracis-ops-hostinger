@@ -48,7 +48,15 @@ const ALIASES: Record<CanonicalField, string[]> = {
   contact3: ['3º contato', '3o contato', '3 contato', 'terceiro contato'],
   contact4: ['4º contato', '4o contato', '4 contato', 'quarto contato'],
   salesforceId: ['salesforce id', 'sf id', 'id salesforce'],
-  salesforceUrl: ['salesforce', 'sf url', 'link salesforce', 'url salesforce'],
+  salesforceUrl: [
+    'salesforce',
+    'sf url',
+    'link salesforce',
+    'url salesforce',
+    'link compra',
+    'link da compra',
+    'url compra',
+  ],
   financial: ['financeiro', 'pagamento', 'status pagamento', 'financeiro status'],
   ignored: [],
 }
