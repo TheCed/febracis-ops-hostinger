@@ -1,0 +1,13 @@
+{
+  "name": "febracis-ops",
+  "version": "2.1.0",
+  "private": true,
+  "description": "FEBRACIS OPS — deploy package for Hostinger Node.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "npm start --prefix server",
+    "postinstall": "npm install --prefix server --omit=dev"
+  }
+}

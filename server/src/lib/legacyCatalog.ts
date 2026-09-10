@@ -1,0 +1,177 @@
+/** Golden layout from legacy `api/_data/system-config.json` → `ficha_layout`. */
+export const GOLDEN_FICHA_LAYOUT = {
+  logo: { x: 5.5, y: 15, width: 21 },
+  title: { x: 27.5, y: 21.5, width: 113.5 },
+  nameText: { x: 157, y: 22.5, width: 53.5, fontSize: 64 },
+  nameLineMain: { x: 159.7, y: 31.3, width: 51, thickness: 0.45 },
+  nameLineShort: { x: 168.2, y: 34.5, width: 40, thickness: 0.45 },
+  labels: { x: 181.2, y: 0, gap: 15.2 },
+  certContainer: { x: 10, y: 254.6, width: 172.4 },
+  certLogo: { x: 13, y: 255.5, width: 10.8 },
+  certTitle: { x: 24, y: 258.5, width: 34, fontSize: 18 },
+  certSubtitle: { x: 24.5, y: 264, width: 60.5, fontSize: 11.8 },
+  certGreen: { x: 96.5, y: 259, width: 20.5, fontSize: 10.4 },
+  certGold: { x: 120.5, y: 258.8, width: 20.5, fontSize: 10.4 },
+  certPersonal: { x: 144.5, y: 258.5, width: 36.5, fontSize: 10.4 },
+  certTotalBox: { x: 182.4, y: 254.6, width: 17.6 },
+  certTotalLabel: { x: 183.4, y: 256.4, width: 18.5, fontSize: 11.7 },
+  certTotalValue: { x: 186.3, y: 261, width: 5.5, fontSize: 30.6 },
+  customItems: [] as unknown[],
+}
+
+/** Full FEBRACIS course catalog from legacy system-config. */
+export const LEGACY_COURSES = [
+  {
+    id: 'm-cis',
+    name: 'Método CIS',
+    description:
+      'Reprograme a raiz de todos os seus problemas, mude seu estilo de vida e construa uma vida extraordinária em 3 dias de imersão.',
+    priceLabel: 'R$ 1.997,00',
+    dateLabel: 'próxima data 15 a 17 | OUT',
+    markerColor: 'green',
+    stacked: false,
+    sortOrder: 1,
+  },
+  {
+    id: 'fcis',
+    name: 'FCIS - Formação em Coaching Integral Sistêmico',
+    description:
+      'Tenha mais saúde, performance e bem-estar através de poderosas ferramentas da neurociência e do coaching integral sistêmico.',
+    priceLabel: 'R$ 10.796,40',
+    dateLabel: '1º M 22 a 25 | SET 2º M 27 a 30 | OUT',
+    markerColor: 'yellow',
+    stacked: true,
+    sortOrder: 2,
+  },
+  {
+    id: 'ml5',
+    name: 'ML5 - Formação de Líderes',
+    description:
+      'Desenvolva maestria empresarial, torne-se um líder com os 5 níveis de excelência e alavanque os seus resultados no mundo dos negócios.',
+    priceLabel: 'R$ 7.197,00',
+    dateLabel: 'próxima data 01 a 04 | NOV',
+    markerColor: 'yellow',
+    stacked: true,
+    sortOrder: 3,
+  },
+  {
+    id: 'if',
+    name: 'IF - Inteligência Financeira',
+    description:
+      'Descubra o verdadeiro caminho para riqueza financeira que habita dentro de você, através do alinhamento das suas crenças e emoções.',
+    priceLabel: 'R$ 3.596,40',
+    dateLabel: 'próxima data  10 a 12 | NOV',
+    markerColor: 'green',
+    stacked: false,
+    sortOrder: 4,
+  },
+  {
+    id: 'fgpc',
+    name: 'FGPC - Formação em Gestão de Pessoas com Perfil Comportamental',
+    description:
+      'Desenvolva suas potencialidades, alcance relacionamentos mais harmoniosos e melhore sua autoestima, persuasão e comunicação.',
+    priceLabel: 'R$ 5.996,40',
+    dateLabel: 'próxima data 1º sem. 2027',
+    markerColor: 'green',
+    stacked: false,
+    sortOrder: 5,
+  },
+  {
+    id: 'bhp',
+    name: 'BHP - Gestão de Negócios',
+    description:
+      'Revolucione o seu desempenho e o desempenho dos profissionais da sua empresa com técnicas e ferramentas modernas de gestão.',
+    priceLabel: 'R$ 5.996,40',
+    dateLabel: 'próxima data 1º sem. 2027',
+    markerColor: 'green',
+    stacked: false,
+    sortOrder: 6,
+  },
+  {
+    id: 'ceop',
+    name: 'CEOP - Comunicação Eficaz e Oratória Persuasiva',
+    description:
+      'Potencialize a sua habilidade de comunicação verbal e não verbal, transmitindo mais poder, convencimento e influência.',
+    priceLabel: 'R$ 5.996,40',
+    dateLabel: 'próxima data 15 a 17 | SET',
+    markerColor: 'yellow',
+    stacked: false,
+    sortOrder: 7,
+  },
+  {
+    id: 'master',
+    name: 'Master Coaching',
+    description:
+      'Acesse e potencialize todo o poder que habita dentro de você através do alinhamento das suas crenças, emoções e habilidades técnicas.',
+    priceLabel: 'R$ 7.796,40',
+    dateLabel: 'próxima data 14 a 18 | DEZ',
+    markerColor: 'yellow',
+    stacked: false,
+    sortOrder: 8,
+  },
+  {
+    id: 'tv',
+    name: 'TV - Técnicas Avançadas de Vendas',
+    description:
+      'Estratégias para escalar o faturamento da sua empresa, atraindo novos compradores e fidelizando os clientes.',
+    priceLabel: 'R$ 2.997,00',
+    dateLabel: 'próxima data 1º sem. 2027',
+    markerColor: 'gray',
+    stacked: false,
+    sortOrder: 9,
+  },
+  {
+    id: 'lider',
+    name: 'LL PASS - Líder de Líderes, JANTAR DE NETWORKING',
+    description: 'Conectando pessoas certas para resultados extraordinários.',
+    priceLabel: 'R$ 3.600,00',
+    dateLabel: 'próxima data 05 | SET',
+    markerColor: 'gray',
+    stacked: false,
+    sortOrder: 10,
+  },
+  {
+    id: 'pep',
+    name: 'Planejamento Estratégico na Prática',
+    description:
+      'Método estratégico utilizado pela FEBRACIS para grandes empresas, visando aumentar seu faturamento e engajar sua equipe.',
+    priceLabel: 'R$ 10.997,00',
+    dateLabel: 'próxima data 15 a 18 | DEZ',
+    markerColor: 'gray',
+    stacked: false,
+    sortOrder: 11,
+  },
+  {
+    id: 'intercoaching-business',
+    name: 'Intercoaching Business',
+    description:
+      'Um evento para você mergulhar em uma atmosfera de inovação e criatividade, ideal para antecipar-se ao mercado.',
+    priceLabel: 'à consultar',
+    dateLabel: 'próxima data 10 a 12 | DEZ',
+    markerColor: 'gray',
+    stacked: false,
+    sortOrder: 12,
+  },
+  {
+    id: 'maestria',
+    name: 'Maestria Empresarial',
+    description:
+      'Junte-se a um ecossistema de grandes empresários determinados a crescer e descobrir experiências transformadoras.',
+    priceLabel: 'à consultar',
+    dateLabel: 'à consultar — acesso anual',
+    markerColor: 'gray',
+    stacked: false,
+    sortOrder: 13,
+  },
+  {
+    id: 'ci',
+    name: 'Coaching Individual',
+    description:
+      'Viva um processo transformador para potencializar suas crenças fortalecedoras e alcançar uma nova versão de si mesmo.',
+    priceLabel: 'à consultar',
+    dateLabel: 'à consultar — 10 sessões individuais',
+    markerColor: 'gray',
+    stacked: false,
+    sortOrder: 14,
+  },
+] as const
